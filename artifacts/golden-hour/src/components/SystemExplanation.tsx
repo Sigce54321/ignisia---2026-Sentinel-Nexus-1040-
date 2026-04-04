@@ -1,4 +1,5 @@
-import type { TriageResult, RoutingStrategy } from '@/lib/triage';
+import type { TriageResult } from '@/lib/engines/triage-engine';
+import type { RoutingStrategy } from '@/lib/engines/optimization-engine';
 
 interface SystemExplanationProps {
   triage: TriageResult;
@@ -22,7 +23,8 @@ export function SystemExplanation({ triage, strategy }: SystemExplanationProps) 
               <span className={`w-3 h-3 rounded-full ${
                 triage.severity === 'CRITICAL' ? 'bg-red-500 animate-pulse' :
                 triage.severity === 'HIGH' ? 'bg-orange-500' :
-                'bg-yellow-500'
+                triage.severity === 'MODERATE' ? 'bg-yellow-500' :
+                'bg-green-500'
               }`} />
               <span className="text-sm text-gray-700">
                 Severity classified as <strong>{triage.severity}</strong> (Score: {triage.score})
@@ -36,6 +38,20 @@ export function SystemExplanation({ triage, strategy }: SystemExplanationProps) 
                 ICU requirement: <strong>{triage.needsICU ? 'Yes' : 'No'}</strong>
               </span>
             </div>
+            {triage.needsVentilator && (
+              <div className="flex items-center gap-2">
+                <span className="text-red-600">⚠️</span>
+                <span className="text-sm text-gray-700 font-bold text-red-700">Ventilator required</span>
+              </div>
+            )}
+            {triage.specialistRequired.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-purple-600">🩺</span>
+                <span className="text-sm text-gray-700">
+                  Specialists needed: <strong>{triage.specialistRequired.join(', ')}</strong>
+                </span>
+              </div>
+            )}
             {triage.reasoning.map((reason, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span className="text-blue-600 mt-0.5">→</span>

@@ -1,0 +1,98 @@
+Build a complete Golden Hour Emergency System with ALL premium features.
+
+TECH STACK: Next.js 14, TypeScript, Tailwind CSS
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CREATE ALL FILES EXACTLY:
+
+1. package.json with dependencies: next, react, firebase, mqtt, framer-motion, zustand, recharts, three, @react-three/fiber
+
+2. src/lib/data/hospitals-mumbai.ts - 10 hospitals with real names (Lilavati, Kokilaben, Hinduja, Breach Candy, Jaslok, Bombay Hospital, Nanavati, Tata Memorial, Seven Hills, Fortis Mulund) with lat/lng, ICU beds, specialists
+
+3. src/lib/data/hospitals-delhi.ts - 10 hospitals (AIIMS, Apollo, Max, Fortis, BLK, etc.)
+
+4. src/lib/data/hospitals-bangalore.ts - 10 hospitals (Manipal, Apollo, Columbia Asia, etc.)
+
+5. src/lib/data/hospitals-pune.ts - 10 hospitals (Ruby Hall, Sahyadri, Jehangir, etc.)
+
+6. src/lib/engines/triage-engine.ts - analyzes symptoms + vitals, returns severity (CRITICAL/HIGH/MODERATE/LOW), needsICU, needsVentilator, specialist required, reasoning
+
+7. src/lib/engines/optimization-engine.ts - multi-objective hospital selection considering distance, ICU availability, specialist, rating, response time
+
+8. src/lib/engines/green-corridor-engine.ts - activates traffic signals via MQTT, calculates ETA reduction
+
+9. src/lib/engines/ambulance-assignment.ts - assigns nearest ambulance, includes backup assignment
+
+10. src/lib/engines/ambulance-failure-handler.ts - detects tire/fuel/engine failure, auto-assigns backup ambulance
+
+11. src/lib/mqtt/client.ts - MQTT connection to broker.hivemq.com:8884/mqtt
+
+12. src/lib/mqtt/topics.ts - define topics for ambulance location, emergency status, traffic signals
+
+13. src/lib/offline.ts - OfflineManager class with cacheHospitalData, getCachedHospitals, calculateDistanceBasedRoute
+
+14. src/components/AmbulanceHealth.tsx - shows fuel level, engine status, tire pressure for 4 wheels, detects failure, displays backup ambulance notification
+
+15. src/components/WeatherImpact.tsx - cycles through Clear/Rain/Heavy Rain/Fog every 8s, adjusts ETA with impact percentage
+
+16. src/components/HospitalPreAlert.tsx - clickable button to send alert, shows 4-step preparation progress (ICU Reserved, Trauma Team, Equipment, Blood Bank)
+
+17. src/components/LiveETACountdown.tsx - real-time countdown in MM:SS, changes milestone (Dispatched → En Route → Final Approach → Arriving Soon), shows PREPARE FOR ARRIVAL at 2 min
+
+18. src/components/PredictiveAnalytics.tsx - forecasts hospital load for next hour, shows trend (increasing/stable), recommendation (Available/Monitor/Avoid)
+
+19. src/components/SystemExplanation.tsx - explains triage severity, ICU requirement, routing strategy (SPLIT vs DIRECT), AI reasoning
+
+20. src/components/LiveHospitalData.tsx - fetches /api/hospital-live every 10s, shows real-time ICU beds, ventilators, wait time, trauma team status, blood bank inventory
+
+21. src/components/NotificationCenter.tsx - sends WhatsApp/SMS to family, hospital, ambulance crew, shows sent status
+
+22. src/components/OfflineIndicator.tsx - yellow banner when offline, monitors navigator.onLine
+
+23. src/app/api/hospital-live/route.ts - returns mock real-time hospital data (ICU beds, ventilators, wait time, blood bank)
+
+24. src/app/api/notify/route.ts - simulates SMS/WhatsApp sending
+
+25. src/app/emergency/new/page.tsx - form with city selector (Mumbai/Delhi/Bangalore/Pune), symptoms input, vitals (heart rate, BP, O2 sat, temp, respiratory rate), age, gender, submit button
+
+26. src/app/emergency/[id]/page.tsx - tracking page with map, hospital card, ambulance tracker, ETA countdown, green corridor status, all TWIST 2 components
+
+27. src/app/analytics-historical/page.tsx - charts for 7 days/30 days/year, shows emergency volume, response time trend, success rate, peak hours
+
+28. src/app/page.tsx - landing page with hero section, 3D background, buttons for Emergency, Dashboard, Analytics, Historical Analytics
+
+29. src/app/globals.css - includes @keyframes slide-in animation
+
+30. src/app/layout.tsx - includes OfflineIndicator component
+
+REQUIREMENTS:
+✅ ALL components fully functional
+✅ NO placeholders or TODOs
+✅ Real hospital data with coordinates
+✅ Working triage engine
+✅ Working optimization engine
+✅ All animations working
+✅ Offline mode working
+✅ Live countdown working
+✅ Weather simulation working
+✅ Ambulance failure detection working
+✅ Hospital pre-alert working
+✅ Notifications working
+✅ Charts working
+✅ Beautiful gradients and glassmorphism
+✅ Responsive design
+✅ All buttons clickable
+
+DESIGN:
+- Background: gradient from purple-50 to blue-50
+- Cards: white with shadow-lg, rounded-xl
+- Primary color: purple-600
+- Emergency color: red-600
+- Success color: green-600
+- Fonts: Inter for UI
+- All cards have hover effects
+- Loading states everywhere
+- Smooth transitions
+
+START GENERATION NOW. Create ALL 30+ files with complete, working code.

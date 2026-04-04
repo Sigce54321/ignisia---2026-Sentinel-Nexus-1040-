@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Hospital } from '@/lib/hospitals';
+import type { Hospital } from '@/lib/data';
 
 interface HospitalPreAlertProps {
   hospital: Hospital | undefined;
