@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Golden Hour Emergency System"
+version = "1.0.0"
+id = "artifacts/golden-hour"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18161
+
+[services.development]
+run = "pnpm --filter @workspace/golden-hour run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/golden-hour", "run", "build" ]
+publicDir = "artifacts/golden-hour/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18161"
+BASE_PATH = "/"
