@@ -15,7 +15,8 @@ export function PredictiveAnalytics({ city }: { city: string }) {
   useEffect(() => {
     const cityHospitals = ALL_HOSPITALS[city] ?? [];
     const predicted: Prediction[] = cityHospitals.map(h => {
-      const currentLoad = ((h.icuBeds - h.availableICU) / h.icuBeds) * 100;
+      const { icuBeds, availableICU } = h.capabilities;
+      const currentLoad = icuBeds > 0 ? ((icuBeds - availableICU) / icuBeds) * 100 : 0;
       const trend: 'increasing' | 'stable' = Math.random() > 0.5 ? 'increasing' : 'stable';
       const nextHourLoad = trend === 'increasing'
         ? Math.min(currentLoad + Math.random() * 20, 100)

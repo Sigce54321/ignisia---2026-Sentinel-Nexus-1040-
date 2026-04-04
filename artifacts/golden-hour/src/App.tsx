@@ -8,6 +8,7 @@ import EmergencyForm from "@/pages/EmergencyForm";
 import EmergencyTracking from "@/pages/EmergencyTracking";
 import HistoricalAnalytics from "@/pages/HistoricalAnalytics";
 import Analytics from "@/pages/Analytics";
+import Dashboard from "@/pages/Dashboard";
 import { OfflineIndicator } from "@/components/OfflineIndicator";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/emergency" component={EmergencyForm} />
       <Route path="/track/:id" component={EmergencyTracking} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/historical" component={HistoricalAnalytics} />
       <Route component={NotFound} />
     </Switch>

@@ -2,9 +2,8 @@ export type Severity = 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
 
 export interface Vitals {
   heartRate: number;
-  systolicBP: number;
-  diastolicBP: number;
-  o2Saturation: number;
+  bloodPressure: { systolic: number; diastolic: number };
+  oxygenSaturation: number;
   temperature: number;
   respiratoryRate: number;
 }
@@ -15,7 +14,6 @@ export interface TriageInput {
   age: number;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   consciousness: 'ALERT' | 'CONFUSED' | 'UNCONSCIOUS';
-  breathing: 'NORMAL' | 'LABORED' | 'ABSENT';
   bleeding: 'NONE' | 'MINOR' | 'SEVERE';
 }
 
@@ -24,176 +22,164 @@ export interface TriageResult {
   needsICU: boolean;
   needsVentilator: boolean;
   specialistRequired: string[];
+  aiConfidence: number;
   score: number;
   reasoning: string[];
 }
 
-const CRITICAL_SYMPTOMS = [
-  'chest pain', 'cardiac arrest', 'stroke', 'head injury',
-  'spinal injury', 'aortic aneurysm', 'pulmonary embolism',
-];
-const HIGH_SYMPTOMS = [
-  'fracture', 'burns', 'seizure', 'overdose', 'trauma',
-  'severe allergic reaction', 'internal bleeding',
-];
-const MODERATE_SYMPTOMS = [
-  'laceration', 'abdominal pain', 'high fever', 'dehydration',
-  'respiratory infection', 'kidney stones',
-];
-
-function scoreVitals(vitals: Vitals): { score: number; issues: string[] } {
+export function analyzeTriage(input: TriageInput): TriageResult {
   let score = 0;
-  const issues: string[] = [];
+  const reasoning: string[] = [];
+  const specialists = new Set<string>();
+  let needsICU = false;
+  let needsVentilator = false;
 
-  if (vitals.o2Saturation < 90) {
-    score += 40;
-    issues.push(`Critical O2 saturation at ${vitals.o2Saturation}% — hypoxia`);
-  } else if (vitals.o2Saturation < 95) {
-    score += 20;
-    issues.push(`Low O2 saturation: ${vitals.o2Saturation}%`);
+  const { vitals, symptoms, age, consciousness, bleeding } = input;
+  const sl = symptoms.map(s => s.toLowerCase());
+
+  if (vitals.oxygenSaturation < 90) {
+    score += 50;
+    needsICU = true;
+    needsVentilator = true;
+    reasoning.push(`Critical O2 saturation: ${vitals.oxygenSaturation}% — hypoxia, ICU + ventilator required`);
+  } else if (vitals.oxygenSaturation < 95) {
+    score += 25;
+    needsICU = true;
+    reasoning.push(`Low O2 saturation: ${vitals.oxygenSaturation}% — supplemental oxygen needed`);
   }
 
-  if (vitals.heartRate > 140 || vitals.heartRate < 40) {
-    score += 30;
-    issues.push(`Dangerous heart rate: ${vitals.heartRate} bpm`);
-  } else if (vitals.heartRate > 110 || vitals.heartRate < 55) {
+  const sbp = vitals.bloodPressure.systolic;
+  if (sbp < 90 || sbp > 180) {
+    score += 45;
+    needsICU = true;
+    reasoning.push(`Critical blood pressure: ${sbp}/${vitals.bloodPressure.diastolic} mmHg — hemodynamic instability`);
+  } else if (sbp < 100 || sbp > 160) {
+    score += 20;
+    reasoning.push(`Abnormal blood pressure: ${sbp}/${vitals.bloodPressure.diastolic} mmHg`);
+  }
+
+  if (vitals.heartRate < 40 || vitals.heartRate > 140) {
+    score += 35;
+    specialists.add('Cardiologist');
+    reasoning.push(`Dangerous heart rate: ${vitals.heartRate} bpm — cardiac monitoring required`);
+  } else if (vitals.heartRate < 55 || vitals.heartRate > 110) {
     score += 15;
-    issues.push(`Abnormal heart rate: ${vitals.heartRate} bpm`);
-  }
-
-  if (vitals.systolicBP < 80) {
-    score += 40;
-    issues.push(`Critical hypotension: ${vitals.systolicBP}/${vitals.diastolicBP} mmHg`);
-  } else if (vitals.systolicBP > 180 || vitals.systolicBP < 90) {
-    score += 20;
-    issues.push(`Abnormal BP: ${vitals.systolicBP}/${vitals.diastolicBP} mmHg`);
+    specialists.add('Cardiologist');
+    reasoning.push(`Abnormal heart rate: ${vitals.heartRate} bpm`);
   }
 
   if (vitals.respiratoryRate > 30 || vitals.respiratoryRate < 8) {
     score += 30;
-    issues.push(`Critical respiratory rate: ${vitals.respiratoryRate}/min`);
+    needsVentilator = true;
+    reasoning.push(`Critical respiratory rate: ${vitals.respiratoryRate}/min — ventilatory support needed`);
   } else if (vitals.respiratoryRate > 24 || vitals.respiratoryRate < 12) {
-    score += 15;
-    issues.push(`Abnormal respiratory rate: ${vitals.respiratoryRate}/min`);
+    score += 12;
+    reasoning.push(`Abnormal respiratory rate: ${vitals.respiratoryRate}/min`);
   }
 
   if (vitals.temperature > 40 || vitals.temperature < 35) {
-    score += 20;
-    issues.push(`Extreme temperature: ${vitals.temperature}°C`);
+    score += 18;
+    reasoning.push(`Extreme temperature: ${vitals.temperature}°C`);
   }
 
-  return { score, issues };
-}
-
-function getSpecialists(symptoms: string[], severity: Severity): string[] {
-  const specialists = new Set<string>();
-  const sl = symptoms.map(s => s.toLowerCase());
-
-  if (sl.some(s => s.includes('chest') || s.includes('cardiac') || s.includes('heart'))) {
-    specialists.add('Cardiologist');
-  }
-  if (sl.some(s => s.includes('head') || s.includes('neuro') || s.includes('stroke') || s.includes('seizure'))) {
+  if (consciousness === 'UNCONSCIOUS') {
+    score += 50;
+    needsICU = true;
+    reasoning.push('Unconscious patient — immediate life threat, full resuscitation protocol');
+  } else if (consciousness === 'CONFUSED') {
+    score += 25;
+    reasoning.push('Altered consciousness — neurological assessment required');
     specialists.add('Neurologist');
   }
-  if (sl.some(s => s.includes('fracture') || s.includes('bone') || s.includes('spinal'))) {
-    specialists.add('Orthopedic Surgeon');
-  }
-  if (sl.some(s => s.includes('burn'))) {
-    specialists.add('Burns Specialist');
-  }
-  if (sl.some(s => s.includes('trauma') || s.includes('accident'))) {
+
+  if (bleeding === 'SEVERE') {
+    score += 35;
+    needsICU = true;
+    reasoning.push('Severe bleeding — hemorrhagic shock risk, surgical standby needed');
     specialists.add('Trauma Surgeon');
+  } else if (bleeding === 'MINOR') {
+    score += 8;
+    reasoning.push('Minor bleeding — wound management required');
   }
-  if (sl.some(s => s.includes('overdose') || s.includes('poison'))) {
-    specialists.add('Toxicologist');
+
+  sl.forEach(s => {
+    if (s.includes('chest pain') || s.includes('cardiac arrest') || s.includes('heart attack')) {
+      score += 40;
+      needsICU = true;
+      specialists.add('Cardiologist');
+      reasoning.push(`Cardiac emergency: ${s}`);
+    } else if (s.includes('stroke')) {
+      score += 45;
+      needsICU = true;
+      specialists.add('Neurologist');
+      reasoning.push('Stroke detected — time-critical intervention, CT scan required');
+    } else if (s.includes('accident') || s.includes('trauma') || s.includes('collision')) {
+      score += 30;
+      specialists.add('Trauma Surgeon');
+      reasoning.push(`High-energy trauma: ${s} — full trauma assessment`);
+    } else if (s.includes('head') || s.includes('brain')) {
+      score += 35;
+      specialists.add('Neurologist');
+      reasoning.push(`Head injury: ${s} — neurosurgery evaluation needed`);
+    } else if (s.includes('fracture') || s.includes('bone')) {
+      score += 15;
+      specialists.add('Orthopedic Surgeon');
+      reasoning.push(`Fracture: ${s}`);
+    } else if (s.includes('burn')) {
+      score += 30;
+      specialists.add('Burns Specialist');
+      reasoning.push(`Burns: ${s} — specialized burns unit required`);
+    } else if (s.includes('seizure')) {
+      score += 25;
+      needsICU = true;
+      specialists.add('Neurologist');
+      reasoning.push('Seizure — anti-epileptic management required');
+    } else if (s.includes('overdose') || s.includes('poison')) {
+      score += 28;
+      needsICU = true;
+      reasoning.push(`Toxic exposure: ${s} — toxicology consultation needed`);
+    }
+  });
+
+  if (age < 18) {
+    score += 15;
+    specialists.add('Pediatrician');
+    reasoning.push('Pediatric patient — age-specific protocols and dosing required');
+  } else if (age > 70) {
+    score += 12;
+    reasoning.push('Elderly patient (70+) — elevated complication risk, comorbidity assessment');
   }
+
+  if (score >= 70) {
+    needsICU = true;
+  }
+
+  let severity: Severity;
+  if (score >= 80) {
+    severity = 'CRITICAL';
+  } else if (score >= 50) {
+    severity = 'HIGH';
+  } else if (score >= 25) {
+    severity = 'MODERATE';
+  } else {
+    severity = 'LOW';
+  }
+
   if (severity === 'CRITICAL' || severity === 'HIGH') {
     specialists.add('Critical Care Physician');
   }
 
-  return Array.from(specialists);
+  const aiConfidence = Math.min(95, 60 + Math.floor(score / 5));
+
+  return {
+    severity,
+    needsICU,
+    needsVentilator,
+    specialistRequired: Array.from(specialists),
+    aiConfidence,
+    score,
+    reasoning,
+  };
 }
 
-export function runTriageEngine(input: TriageInput): TriageResult {
-  let score = 0;
-  const reasoning: string[] = [];
-
-  if (input.consciousness === 'UNCONSCIOUS') {
-    score += 50;
-    reasoning.push('Patient is unconscious — immediate life threat detected');
-  } else if (input.consciousness === 'CONFUSED') {
-    score += 25;
-    reasoning.push('Altered consciousness — potential neurological compromise');
-  }
-
-  if (input.breathing === 'ABSENT') {
-    score += 60;
-    reasoning.push('Breathing absent — critical airway compromise, resuscitation needed');
-  } else if (input.breathing === 'LABORED') {
-    score += 30;
-    reasoning.push('Labored breathing — respiratory distress present');
-  }
-
-  if (input.bleeding === 'SEVERE') {
-    score += 35;
-    reasoning.push('Severe bleeding — hemorrhagic shock risk');
-  } else if (input.bleeding === 'MINOR') {
-    score += 10;
-    reasoning.push('Minor bleeding present');
-  }
-
-  const { score: vitalScore, issues } = scoreVitals(input.vitals);
-  score += vitalScore;
-  issues.forEach(i => reasoning.push(i));
-
-  if (input.age > 70) {
-    score += 15;
-    reasoning.push('Advanced age (70+) — elevated complication risk');
-  } else if (input.age > 60) {
-    score += 8;
-    reasoning.push('Senior patient — increased vulnerability');
-  } else if (input.age < 5) {
-    score += 18;
-    reasoning.push('Infant/young child — pediatric critical care required');
-  }
-
-  const sl = input.symptoms.map(s => s.toLowerCase());
-  sl.forEach(s => {
-    if (CRITICAL_SYMPTOMS.some(c => s.includes(c))) {
-      score += 25;
-      reasoning.push(`Critical symptom: ${s}`);
-    } else if (HIGH_SYMPTOMS.some(h => s.includes(h))) {
-      score += 12;
-      reasoning.push(`High-risk symptom: ${s}`);
-    } else if (MODERATE_SYMPTOMS.some(m => s.includes(m))) {
-      score += 5;
-      reasoning.push(`Moderate symptom: ${s}`);
-    }
-  });
-
-  let severity: Severity;
-  let needsICU: boolean;
-  let needsVentilator: boolean;
-
-  if (score >= 80) {
-    severity = 'CRITICAL';
-    needsICU = true;
-    needsVentilator = input.breathing !== 'NORMAL' || input.vitals.o2Saturation < 90;
-  } else if (score >= 50) {
-    severity = 'HIGH';
-    needsICU = score >= 60;
-    needsVentilator = input.vitals.o2Saturation < 88;
-  } else if (score >= 25) {
-    severity = 'MODERATE';
-    needsICU = false;
-    needsVentilator = false;
-  } else {
-    severity = 'LOW';
-    needsICU = false;
-    needsVentilator = false;
-  }
-
-  const specialistRequired = getSpecialists(input.symptoms, severity);
-
-  return { severity, needsICU, needsVentilator, specialistRequired, score, reasoning };
-}
+export type { TriageInput as TriageInputType };

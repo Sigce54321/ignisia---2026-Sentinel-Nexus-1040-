@@ -1,13 +1,15 @@
 import type { Hospital } from '../data';
 import type { TriageResult } from './triage-engine';
+import { haversineKm } from '../utils/distance';
 
 export interface OptimizationScore {
   hospital: Hospital;
   totalScore: number;
   distanceScore: number;
-  icuScore: number;
-  specialistScore: number;
-  ratingScore: number;
+  capacityScore: number;
+  qualityScore: number;
+  responseScore: number;
+  distanceKm: number;
   eta: number;
 }
 
@@ -21,71 +23,84 @@ export interface RoutingStrategy {
   etaSecondary?: number;
   reasoning: string[];
   scores: OptimizationScore[];
+  constraints: string[];
 }
 
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function computeETA(distKm: number, responseTime: number): number {
+  return Math.round((distKm / 45) * 60 + responseTime * 0.4);
 }
 
-function computeETA(distanceKm: number, avgResponse: number): number {
-  const travelMin = (distanceKm / 45) * 60;
-  return Math.round(travelMin + avgResponse * 0.3);
-}
-
-export function runOptimizationEngine(
-  hospitals: Hospital[],
-  patientLat: number,
-  patientLng: number,
-  triage: TriageResult
+export function optimizeHospital(
+  userLocation: { lat: number; lng: number },
+  triage: TriageResult,
+  hospitals: Hospital[]
 ): RoutingStrategy {
-  const scores: OptimizationScore[] = hospitals.map(h => {
-    const dist = haversineKm(patientLat, patientLng, h.lat, h.lng);
+  const { lat, lng } = userLocation;
+  const constraints: string[] = [];
 
-    const distanceScore = Math.max(0, 100 - dist * 8);
+  let candidates = hospitals.filter(h => h.status !== 'FULL');
 
-    const icuRatio = h.availableICU / h.icuBeds;
-    const icuScore = triage.needsICU ? icuRatio * 100 : 50;
+  if (triage.needsICU) {
+    const withICU = candidates.filter(h => h.capabilities.availableICU > 0);
+    if (withICU.length > 0) {
+      candidates = withICU;
+      constraints.push('ICU availability required — filtered to facilities with open ICU beds');
+    } else {
+      constraints.push('Warning: no hospitals with free ICU beds in network');
+    }
+  }
 
-    const specialistScore = triage.specialistRequired.filter(s =>
-      h.specialists.some(hs => hs.toLowerCase().includes(s.toLowerCase().split(' ')[0]))
-    ).length * 20;
+  if (triage.needsVentilator) {
+    const withVent = candidates.filter(h => h.capabilities.availableVentilators > 0);
+    if (withVent.length > 0) {
+      candidates = withVent;
+      constraints.push('Ventilator availability required — filtered accordingly');
+    }
+  }
 
-    const ratingScore = (h.rating / 5) * 100;
-    const traumaBonus = triage.severity === 'CRITICAL' ? (4 - h.traumaLevel) * 15 : 0;
+  const scored: OptimizationScore[] = candidates.map(h => {
+    const distKm = haversineKm(lat, lng, h.location.lat, h.location.lng);
+    const eta = computeETA(distKm, h.responseTime);
+
+    const distanceScore = Math.max(0, 100 - distKm * 10);
+
+    const icuRatio = h.capabilities.icuBeds > 0
+      ? h.capabilities.availableICU / h.capabilities.icuBeds
+      : 0;
+    const ventRatio = h.capabilities.ventilators > 0
+      ? h.capabilities.availableVentilators / h.capabilities.ventilators
+      : 0;
+    const capacityScore = icuRatio * 30 + ventRatio * 30;
+
+    const qualityScore = (h.rating / 5) * 20 + (h.successRate / 100) * 20;
+
+    const responseScore = Math.max(0, 100 - h.responseTime * 5);
 
     const totalScore =
-      distanceScore * 0.35 +
-      icuScore * 0.30 +
-      specialistScore * 0.20 +
-      ratingScore * 0.10 +
-      traumaBonus * 0.05;
+      distanceScore * 0.4 +
+      capacityScore * 0.3 +
+      qualityScore * 0.2 +
+      responseScore * 0.1;
 
     return {
-      hospital: { ...h, distance: Math.round(dist * 10) / 10 },
+      hospital: h,
       totalScore,
       distanceScore,
-      icuScore,
-      specialistScore,
-      ratingScore,
-      eta: computeETA(dist, h.avgResponseTime),
+      capacityScore,
+      qualityScore,
+      responseScore,
+      distanceKm: Math.round(distKm * 10) / 10,
+      eta,
     };
   });
 
-  scores.sort((a, b) => b.totalScore - a.totalScore);
+  scored.sort((a, b) => b.totalScore - a.totalScore);
 
-  if (triage.severity === 'CRITICAL' && scores.length >= 2) {
-    const primary = scores[0];
-    const secondary = scores.find(
-      s => s.hospital.id !== primary.hospital.id && s.hospital.availableICU > 5
-    ) || scores[1];
+  if (triage.severity === 'CRITICAL' && scored.length >= 2) {
+    const primary = scored[0];
+    const secondary = scored.find(
+      s => s.hospital.id !== primary.hospital.id && s.hospital.capabilities.availableICU > 3
+    ) ?? scored[1];
 
     return {
       mode: 'SPLIT',
@@ -95,28 +110,31 @@ export function runOptimizationEngine(
       etaPrimary: primary.eta,
       etaSecondary: secondary.eta,
       reasoning: [
-        `Critical severity — split routing activated for optimal survival`,
-        `${primary.hospital.name}: nearest trauma center with ${primary.hospital.availableICU} ICU beds free`,
-        `Specialists matched: ${triage.specialistRequired.slice(0, 2).join(', ')}`,
-        `${secondary.hospital.name} on standby for specialist transfer if needed`,
-        `Green corridor activated — traffic signals pre-cleared on route`,
+        `CRITICAL patient — split routing activated for maximum survival probability`,
+        `Step 1: Stabilize at ${primary.hospital.name} (${primary.distanceKm} km, ETA ${primary.eta}m)`,
+        `${primary.hospital.capabilities.availableICU} ICU beds + ${primary.hospital.capabilities.availableVentilators} ventilators available`,
+        `Step 2: ${secondary.hospital.name} on standby for specialist transfer`,
+        `Combined score: ${primary.totalScore.toFixed(1)} — highest-ranked trauma center`,
+        `Green corridor pre-cleared for zero signal stops`,
       ],
-      scores,
+      scores: scored,
+      constraints,
     };
   }
 
-  const best = scores[0];
+  const best = scored[0];
   return {
     mode: 'DIRECT',
     selectedHospital: best.hospital,
     totalETA: best.eta,
     reasoning: [
-      `${best.hospital.name} selected as optimal facility`,
-      `Distance: ${best.hospital.distance} km — ETA ${best.eta} minutes`,
-      `${best.hospital.availableICU} ICU beds available, Trauma Level ${best.hospital.traumaLevel}`,
-      `Rating: ${best.hospital.rating}/5 — top-rated facility in area`,
-      `Specialists available: ${best.hospital.specialists.join(', ')}`,
+      `${best.hospital.name} selected — optimal facility (score: ${best.totalScore.toFixed(1)})`,
+      `Distance: ${best.distanceKm} km — ETA ${best.eta} minutes`,
+      `${best.hospital.capabilities.availableICU} ICU beds free, ${best.hospital.capabilities.availableVentilators} ventilators available`,
+      `Rating: ${best.hospital.rating}/5 · Success rate: ${best.hospital.successRate}%`,
+      `Response time: ${best.hospital.responseTime} min avg`,
     ],
-    scores,
+    scores: scored,
+    constraints,
   };
 }

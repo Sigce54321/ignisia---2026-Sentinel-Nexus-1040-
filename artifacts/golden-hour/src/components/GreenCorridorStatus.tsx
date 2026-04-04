@@ -39,13 +39,13 @@ export function GreenCorridorStatus({ fromLat, fromLng, toLat, toLng }: Props) {
           </span>
         </h3>
         <span className="text-sm font-bold text-green-600">
-          {status.etaReduction > 0 ? `-${status.etaReduction} min` : 'Activating...'}
+          {status.etaReduction > 0 ? `−${status.etaReduction} min saved` : 'Activating...'}
         </span>
       </div>
 
       <div className="mb-3">
         <div className="flex justify-between text-sm mb-1">
-          <span className="text-gray-600">Signals cleared</span>
+          <span className="text-gray-600">Signals pre-cleared</span>
           <span className="font-bold text-green-700">{status.signalsCleared}/{status.signalsTotal}</span>
         </div>
         <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
@@ -54,16 +54,17 @@ export function GreenCorridorStatus({ fromLat, fromLng, toLat, toLng }: Props) {
             style={{ width: `${pct}%` }}
           />
         </div>
+        <p className="text-xs text-green-600 mt-1 text-right">{pct}% cleared</p>
       </div>
 
       <div className="grid grid-cols-4 gap-2">
         {status.route.map((signal, i) => (
           <div
             key={signal.id}
-            className={`rounded-lg p-2 text-center transition-all ${
+            className={`rounded-lg p-2 text-center transition-all duration-500 ${
               signal.status === 'CLEARED'
-                ? 'bg-green-500 text-white'
-                : 'bg-gray-100 text-gray-500'
+                ? 'bg-green-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-400'
             }`}
           >
             <div className="text-lg">{signal.status === 'CLEARED' ? '🟢' : '🔴'}</div>
@@ -73,7 +74,7 @@ export function GreenCorridorStatus({ fromLat, fromLng, toLat, toLng }: Props) {
       </div>
 
       <p className="text-xs text-green-700 mt-3 text-center">
-        Corridor ID: {status.corridorId} • All signals pre-programmed for ambulance passage
+        Corridor ID: <strong>{status.corridorId}</strong> · Traffic management system active
       </p>
     </div>
   );

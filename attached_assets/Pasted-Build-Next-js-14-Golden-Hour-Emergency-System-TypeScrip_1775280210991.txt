@@ -1,0 +1,68 @@
+Build Next.js 14 Golden Hour Emergency System. TypeScript + Tailwind.
+
+FILES:
+package.json: next@14.1.0, react@18.2.0, typescript@5.3.3, framer-motion@10.18.0, zustand@4.4.7, lucide-react@0.309.0
+tailwind.config.ts: content ['./src/**/*.{tsx,ts}']
+tsconfig.json: paths {"@/*":["./src/*"]}
+
+HOSPITAL DATA (src/lib/data/hospitals.ts):
+Export arrays: mumbaiHospitals, delhiHospitals, bangaloreHospitals, puneHospitals
+Mumbai: Lilavati(19.0544,72.8320), Kokilaben(19.1825,72.8343), Hinduja(19.0367,72.8264), Breach Candy(18.9733,72.8059), Jaslok(18.9639,72.8058), Bombay(18.9420,72.8258), Nanavati(19.0431,72.8347), Tata(19.0105,72.8444), SevenHills(19.2247,72.8492), Fortis(19.1722,72.9565)
+Delhi: AIIMS(28.5672,77.2100), Apollo(28.5431,77.2733), Max(28.5244,77.2066), Fortis(28.6289,77.2065), BLK(28.6517,77.1793), GangaRam(28.6431,77.1892), Indraprastha(28.5431,77.2733), Medanta(28.4089,77.0678), Safdarjung(28.5678,77.2065), Artemis(28.4518,77.0688)
+Bangalore: Manipal(12.9897,77.5996), Apollo(12.9141,77.6100), Columbia(12.9698,77.7500), Fortis(13.0199,77.6343), Narayana(12.9122,77.6046), StJohns(12.9500,77.5833), BGS(12.9716,77.5946), Sakra(12.9698,77.7500), Aster(12.9718,77.6397), Cloudnine(12.9698,77.6469)
+Pune: RubyHall(18.5204,73.8567), Sahyadri(18.5314,73.8446), Jehangir(18.5204,73.8567), Columbia(18.5679,73.9143), KEM(18.4932,73.8554), Deenanath(18.5167,73.9262), AdityaBirla(18.5679,73.9143), Noble(18.5679,73.9143), Poona(18.5204,73.8567), Inamdar(18.4678,73.8851)
+Schema: {id,name,city,location{lat,lng,address},contact{phone,emergency},capabilities{totalBeds,availableBeds,icuBeds:50-150,availableICU:5-30,ventilators:30-80,availableVentilators:5-20,oxygenSupply:true,bloodBank:true,trauma:true},specialists{cardiology,neurology,trauma,orthopedic,pediatric,general:all true},status:'AVAILABLE',rating:4.4-4.8,responseTime:6-11min,successRate:91-97%}
+
+ENGINES:
+src/lib/engines/triage-engine.ts: analyzeTriage({symptoms,vitals:{heartRate,bloodPressure,oxygenSaturation,temperature,respiratoryRate},age})→{severity,needsICU,needsVentilator,specialistRequired,aiConfidence,reasoning[]}. Logic: O2<90→CRITICAL+ICU+vent, BP<90|>180→CRITICAL+ICU, HR<40|>140→HIGH+cardio, chestPain→HIGH+cardio, stroke→CRITICAL+neuro, accident→trauma, age<18→pediatric
+
+src/lib/engines/optimization-engine.ts: optimizeHospital({userLocation,triage,hospitals})→{selectedHospital,alternativeHospitals,score,reasoning,constraints}. Filter status!='FULL', needsICU→availableICU>0, needsVent→availableVent>0. Score: dist=100-km*10, cap=(ICU/total)*30+(vent/total)*30, qual=(rating/5)*20+(success/100)*20, resp=100-time*5. Total=dist*0.4+cap*0.3+qual*0.2+resp*0.1
+
+src/lib/utils/distance.ts: Haversine(lat1,lng1,lat2,lng2)→km
+
+src/lib/offline.ts: class OfflineManager{cacheHospitalData(h)→localStorage.set, getCachedHospitals()→localStorage.get, isOnline()→navigator.onLine, calculateDistanceBasedRoute(lat,lng,hospitals)→nearest}
+
+COMPONENTS:
+src/components/AmbulanceHealth.tsx: state{fuel:75,engine:'GOOD',tires:{FL:32,FR:32,RL:30,RR:30},speed:45}. Interval 2s: fuel-=0.5, speed=40-60, 2% chance FL=10,engine='CRITICAL',speed=0,backup='AMB-'+random. Show fuel bar, engine badge, 4 tire grid, speed. If fail: yellow alert+backup
+
+src/components/WeatherImpact.tsx: weathers=[Clear☀️0%, Rain🌧️15%, HeavyRain⛈️30%, Fog🌫️20%]. Interval 8s random. adjETA=base+(base*impact/100). Show icon, condition, impact, crossed base, adjusted
+
+src/components/HospitalPreAlert.tsx: state alertSent=false, prep=[ICUReserved,TraumaTeam,Equipment,BloodBank]. sendAlert()→sent=true, loop 1.5s each→completed. Button or checklist
+
+src/components/LiveETACountdown.tsx: state time=initialETA*60. Interval 1s: time--. Milestone: >10=Dispatched, 5-10=EnRoute, 2-5=FinalApproach, <=2=ArrivingSoon. Show MM:SS, badge, if <=2 PREPARE pulsing
+
+src/components/PredictiveAnalytics.tsx: foreach hospital: currLoad=(total-avail)/total*100, trend=random inc/stable, predLoad=inc?curr+rand*20:curr, rec=pred>80?Avoid:pred>60?Monitor:Available. Cards: currLoad, predLoad, trend📈/➡️, rec badge, dual bars
+
+src/components/SystemExplanation.tsx: Show triage{severity badge, ICU yes/no, reasoning list}, strategy{SPLIT/DIRECT badge, reasoning}, why text
+
+src/components/LiveHospitalData.tsx: fetch /api/hospital-live?id every 10s. Show ICU, vents, waitTime, traumaStatus, bloodBank grid, LIVE pulsing, updated time
+
+src/components/NotificationCenter.tsx: sendNotifications()→3 recipients(family WhatsApp, hospital SMS, ambulance WhatsApp), POST /api/notify each. Show status icons+timestamps
+
+src/components/OfflineIndicator.tsx: state online=navigator.onLine. Events online/offline. If !online: yellow top banner
+
+PAGES:
+src/app/page.tsx: Gradient purple-blue. Hero "🚨 Golden Hour". Grid: Emergency(red,/emergency/new), Dashboard(blue,/dashboard), Analytics(purple,/analytics), Historical(orange,/analytics-historical). Hover float
+
+src/app/emergency/new/page.tsx: Form city(Mum/Del/Bang/Pune), symptoms textarea, vitals(HR,BPsys/dia,O2,temp,RR), age, gender. Submit→triage→optimize→push /emergency/[id]?data=. Offline: OfflineManager
+
+src/app/emergency/[id]/page.tsx: Parse query data. Show hospital card, all components: LiveETACountdown, WeatherImpact, AmbulanceHealth, HospitalPreAlert, SystemExplanation, LiveHospitalData, NotificationCenter, PredictiveAnalytics. Grid layout
+
+src/app/analytics-historical/page.tsx: state range='week', data. Gen mock: 7/30/365 days{emergencies,avgTime,successRate}. Buttons week/month/year. Cards: total, avgTime, success%, peakHour. 3 bar charts: ResponseTime(blue), Volume(red), Success(green)
+
+src/app/dashboard/page.tsx: City select, emergencies grid, hospital table, stats
+
+src/app/analytics/page.tsx: Hospital capacity, PredictiveAnalytics, metrics
+
+APIs:
+src/app/api/hospital-live/route.ts: GET→{hospitalId,timestamp,realTimeData{ICU:rand(5,25),vents:rand(3,18),wait:rand(10,40),trauma:'AVAILABLE'|'BUSY',blood{O+:rand(2,12),O-:rand(1,6),A+:rand(2,10)},OR{total:8,avail:rand(1,5)}}}
+
+src/app/api/notify/route.ts: POST{phone,msg,type}→{success:true,notification{id,type,recipient,msg,status:'SENT',timestamp,provider}}
+
+STYLES:
+src/app/globals.css: @tailwind. body{@apply bg-gradient-to-br from-purple-50 to-blue-50}. @keyframes slide-in{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}. .animate-slide-in{animation:slide-in 0.5s}
+
+src/app/layout.tsx: Wrap <OfflineIndicator/>, title "Golden Hour"
+
+✅ NO placeholders ✅ Real coords ✅ Full logic ✅ All working ✅ Animations ✅ Responsive
+Generate ALL files COMPLETE code NOW.

@@ -2,20 +2,38 @@ export interface Hospital {
   id: string;
   name: string;
   city: string;
-  address: string;
-  lat: number;
-  lng: number;
-  icuBeds: number;
-  availableICU: number;
-  ventilators: number;
-  availableVentilators: number;
-  specialists: string[];
-  traumaLevel: 1 | 2 | 3;
-  avgResponseTime: number;
+  location: {
+    lat: number;
+    lng: number;
+    address: string;
+  };
+  contact: {
+    phone: string;
+    emergency: string;
+  };
+  capabilities: {
+    totalBeds: number;
+    availableBeds: number;
+    icuBeds: number;
+    availableICU: number;
+    ventilators: number;
+    availableVentilators: number;
+    oxygenSupply: boolean;
+    bloodBank: boolean;
+    trauma: boolean;
+  };
+  specialists: {
+    cardiology: boolean;
+    neurology: boolean;
+    trauma: boolean;
+    orthopedic: boolean;
+    pediatric: boolean;
+    general: boolean;
+  };
+  status: 'AVAILABLE' | 'BUSY' | 'FULL';
   rating: number;
-  distance?: number;
-  waitTime?: number;
-  bloodBank: { aPos: number; bPos: number; oPos: number; abPos: number };
+  responseTime: number;
+  successRate: number;
 }
 
 export const hospitalsMumbai: Hospital[] = [
@@ -23,170 +41,130 @@ export const hospitalsMumbai: Hospital[] = [
     id: 'mum-1',
     name: 'Lilavati Hospital',
     city: 'Mumbai',
-    address: 'A-791, Bandra Reclamation, Bandra West',
-    lat: 19.0591,
-    lng: 72.8261,
-    icuBeds: 60,
-    availableICU: 18,
-    ventilators: 30,
-    availableVentilators: 10,
-    specialists: ['Cardiac', 'Neuro', 'Trauma', 'Oncology'],
-    traumaLevel: 1,
-    avgResponseTime: 8,
+    location: { lat: 19.0544, lng: 72.8320, address: 'A-791, Bandra Reclamation, Bandra West, Mumbai' },
+    contact: { phone: '022-2675-1000', emergency: '022-2675-1111' },
+    capabilities: { totalBeds: 330, availableBeds: 85, icuBeds: 60, availableICU: 18, ventilators: 30, availableVentilators: 10, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: true, pediatric: true, general: true },
+    status: 'AVAILABLE',
     rating: 4.7,
-    bloodBank: { aPos: 20, bPos: 15, oPos: 25, abPos: 8 },
+    responseTime: 8,
+    successRate: 96,
   },
   {
     id: 'mum-2',
     name: 'Kokilaben Dhirubhai Ambani Hospital',
     city: 'Mumbai',
-    address: 'Rao Saheb Achutrao Patwardhan Marg, Four Bungalows, Andheri West',
-    lat: 19.1169,
-    lng: 72.8372,
-    icuBeds: 80,
-    availableICU: 22,
-    ventilators: 40,
-    availableVentilators: 12,
-    specialists: ['Cardiac', 'Neuro', 'Transplant', 'Burns', 'Trauma'],
-    traumaLevel: 1,
-    avgResponseTime: 10,
+    location: { lat: 19.1825, lng: 72.8343, address: 'Rao Saheb Achutrao Patwardhan Marg, Andheri West, Mumbai' },
+    contact: { phone: '022-3066-1000', emergency: '022-3066-1111' },
+    capabilities: { totalBeds: 750, availableBeds: 180, icuBeds: 120, availableICU: 28, ventilators: 60, availableVentilators: 15, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: true, pediatric: true, general: true },
+    status: 'AVAILABLE',
     rating: 4.8,
-    bloodBank: { aPos: 30, bPos: 20, oPos: 35, abPos: 12 },
+    responseTime: 9,
+    successRate: 97,
   },
   {
     id: 'mum-3',
     name: 'Hinduja Hospital',
     city: 'Mumbai',
-    address: 'Veer Savarkar Marg, Mahim',
-    lat: 19.0386,
-    lng: 72.8413,
-    icuBeds: 55,
-    availableICU: 14,
-    ventilators: 25,
-    availableVentilators: 7,
-    specialists: ['Cardiac', 'Neuro', 'Gastro', 'Ortho'],
-    traumaLevel: 1,
-    avgResponseTime: 9,
+    location: { lat: 19.0367, lng: 72.8264, address: 'Veer Savarkar Marg, Mahim, Mumbai' },
+    contact: { phone: '022-2444-9199', emergency: '022-2444-9911' },
+    capabilities: { totalBeds: 350, availableBeds: 90, icuBeds: 70, availableICU: 15, ventilators: 35, availableVentilators: 9, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: true, pediatric: false, general: true },
+    status: 'AVAILABLE',
     rating: 4.6,
-    bloodBank: { aPos: 18, bPos: 12, oPos: 22, abPos: 6 },
+    responseTime: 9,
+    successRate: 95,
   },
   {
     id: 'mum-4',
     name: 'Breach Candy Hospital',
     city: 'Mumbai',
-    address: '60-A Bhulabhai Desai Road, Breach Candy',
-    lat: 18.9688,
-    lng: 72.8080,
-    icuBeds: 40,
-    availableICU: 9,
-    ventilators: 20,
-    availableVentilators: 5,
-    specialists: ['Cardiac', 'Oncology', 'Pediatrics'],
-    traumaLevel: 2,
-    avgResponseTime: 12,
+    location: { lat: 18.9733, lng: 72.8059, address: '60-A Bhulabhai Desai Road, Breach Candy, Mumbai' },
+    contact: { phone: '022-2367-1888', emergency: '022-2367-1999' },
+    capabilities: { totalBeds: 200, availableBeds: 50, icuBeds: 50, availableICU: 9, ventilators: 25, availableVentilators: 6, oxygenSupply: true, bloodBank: true, trauma: false },
+    specialists: { cardiology: true, neurology: false, trauma: false, orthopedic: true, pediatric: true, general: true },
+    status: 'AVAILABLE',
     rating: 4.5,
-    bloodBank: { aPos: 12, bPos: 8, oPos: 15, abPos: 4 },
+    responseTime: 11,
+    successRate: 93,
   },
   {
     id: 'mum-5',
     name: 'Jaslok Hospital',
     city: 'Mumbai',
-    address: '15, Dr Deshmukh Marg, Pedder Road',
-    lat: 18.9724,
-    lng: 72.8090,
-    icuBeds: 50,
-    availableICU: 12,
-    ventilators: 22,
-    availableVentilators: 6,
-    specialists: ['Neuro', 'Cardiac', 'Transplant', 'Oncology'],
-    traumaLevel: 1,
-    avgResponseTime: 11,
+    location: { lat: 18.9639, lng: 72.8058, address: '15 Dr Deshmukh Marg, Pedder Road, Mumbai' },
+    contact: { phone: '022-6657-3333', emergency: '022-6657-3999' },
+    capabilities: { totalBeds: 320, availableBeds: 78, icuBeds: 65, availableICU: 14, ventilators: 32, availableVentilators: 8, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: false, orthopedic: true, pediatric: false, general: true },
+    status: 'AVAILABLE',
     rating: 4.6,
-    bloodBank: { aPos: 15, bPos: 10, oPos: 18, abPos: 5 },
+    responseTime: 10,
+    successRate: 94,
   },
   {
     id: 'mum-6',
     name: 'Bombay Hospital',
     city: 'Mumbai',
-    address: '12, New Marine Lines, Marine Lines',
-    lat: 18.9394,
-    lng: 72.8330,
-    icuBeds: 70,
-    availableICU: 20,
-    ventilators: 35,
-    availableVentilators: 11,
-    specialists: ['Cardiac', 'Neuro', 'Ortho', 'Trauma', 'Pediatrics'],
-    traumaLevel: 1,
-    avgResponseTime: 8,
+    location: { lat: 18.9420, lng: 72.8258, address: '12, New Marine Lines, Marine Lines, Mumbai' },
+    contact: { phone: '022-2206-7676', emergency: '022-2206-7999' },
+    capabilities: { totalBeds: 420, availableBeds: 100, icuBeds: 80, availableICU: 20, ventilators: 40, availableVentilators: 11, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: true, pediatric: true, general: true },
+    status: 'AVAILABLE',
     rating: 4.7,
-    bloodBank: { aPos: 25, bPos: 18, oPos: 28, abPos: 10 },
+    responseTime: 8,
+    successRate: 96,
   },
   {
     id: 'mum-7',
     name: 'Nanavati Super Speciality Hospital',
     city: 'Mumbai',
-    address: 'S. V. Road, Vile Parle West',
-    lat: 19.1004,
-    lng: 72.8454,
-    icuBeds: 65,
-    availableICU: 16,
-    ventilators: 30,
-    availableVentilators: 9,
-    specialists: ['Cardiac', 'Neuro', 'Transplant', 'Burns'],
-    traumaLevel: 1,
-    avgResponseTime: 10,
+    location: { lat: 19.0431, lng: 72.8347, address: 'S. V. Road, Vile Parle West, Mumbai' },
+    contact: { phone: '022-2626-7500', emergency: '022-2626-7999' },
+    capabilities: { totalBeds: 355, availableBeds: 85, icuBeds: 70, availableICU: 16, ventilators: 35, availableVentilators: 9, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: false, pediatric: false, general: true },
+    status: 'AVAILABLE',
     rating: 4.5,
-    bloodBank: { aPos: 20, bPos: 14, oPos: 24, abPos: 8 },
+    responseTime: 10,
+    successRate: 94,
   },
   {
     id: 'mum-8',
     name: 'Tata Memorial Hospital',
     city: 'Mumbai',
-    address: 'Dr. E Borges Road, Parel',
-    lat: 19.0005,
-    lng: 72.8419,
-    icuBeds: 45,
-    availableICU: 8,
-    ventilators: 18,
-    availableVentilators: 4,
-    specialists: ['Oncology', 'Hematology', 'Radiation'],
-    traumaLevel: 2,
-    avgResponseTime: 14,
+    location: { lat: 19.0105, lng: 72.8444, address: 'Dr. E Borges Road, Parel, Mumbai' },
+    contact: { phone: '022-2417-7000', emergency: '022-2417-7999' },
+    capabilities: { totalBeds: 620, availableBeds: 140, icuBeds: 80, availableICU: 12, ventilators: 40, availableVentilators: 7, oxygenSupply: true, bloodBank: true, trauma: false },
+    specialists: { cardiology: false, neurology: false, trauma: false, orthopedic: false, pediatric: true, general: true },
+    status: 'AVAILABLE',
     rating: 4.9,
-    bloodBank: { aPos: 10, bPos: 8, oPos: 12, abPos: 3 },
+    responseTime: 12,
+    successRate: 97,
   },
   {
     id: 'mum-9',
     name: 'Seven Hills Hospital',
     city: 'Mumbai',
-    address: 'Marol Maroshi Road, Andheri East',
-    lat: 19.1189,
-    lng: 72.8824,
-    icuBeds: 55,
-    availableICU: 17,
-    ventilators: 28,
-    availableVentilators: 10,
-    specialists: ['Trauma', 'Ortho', 'Cardiac', 'Neuro'],
-    traumaLevel: 1,
-    avgResponseTime: 9,
+    location: { lat: 19.2247, lng: 72.8492, address: 'Marol Maroshi Road, Andheri East, Mumbai' },
+    contact: { phone: '022-6767-6767', emergency: '022-6767-6999' },
+    capabilities: { totalBeds: 500, availableBeds: 120, icuBeds: 90, availableICU: 22, ventilators: 45, availableVentilators: 13, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: true, orthopedic: true, pediatric: false, general: true },
+    status: 'AVAILABLE',
     rating: 4.4,
-    bloodBank: { aPos: 18, bPos: 12, oPos: 20, abPos: 7 },
+    responseTime: 9,
+    successRate: 92,
   },
   {
     id: 'mum-10',
     name: 'Fortis Mulund',
     city: 'Mumbai',
-    address: 'Mulund Goregaon Link Road, Mulund West',
-    lat: 19.1724,
-    lng: 72.9558,
-    icuBeds: 50,
-    availableICU: 15,
-    ventilators: 25,
-    availableVentilators: 8,
-    specialists: ['Cardiac', 'Neuro', 'Ortho', 'Transplant'],
-    traumaLevel: 1,
-    avgResponseTime: 11,
+    location: { lat: 19.1722, lng: 72.9565, address: 'Mulund Goregaon Link Road, Mulund West, Mumbai' },
+    contact: { phone: '022-4120-6300', emergency: '022-4120-6999' },
+    capabilities: { totalBeds: 315, availableBeds: 80, icuBeds: 65, availableICU: 17, ventilators: 32, availableVentilators: 10, oxygenSupply: true, bloodBank: true, trauma: true },
+    specialists: { cardiology: true, neurology: true, trauma: false, orthopedic: true, pediatric: false, general: true },
+    status: 'AVAILABLE',
     rating: 4.5,
-    bloodBank: { aPos: 16, bPos: 11, oPos: 19, abPos: 6 },
+    responseTime: 10,
+    successRate: 93,
   },
 ];

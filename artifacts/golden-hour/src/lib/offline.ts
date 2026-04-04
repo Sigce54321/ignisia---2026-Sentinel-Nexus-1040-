@@ -1,7 +1,8 @@
 import type { Hospital } from './data';
 import { ALL_HOSPITALS } from './data';
+import { haversineKm } from './utils/distance';
 
-const CACHE_KEY = 'golden_hour_hospitals_cache';
+const CACHE_KEY = 'golden_hour_hospitals_v2';
 const CACHE_TTL = 60 * 60 * 1000;
 
 interface CacheEntry {
@@ -11,18 +12,13 @@ interface CacheEntry {
 
 export class OfflineManager {
   private static instance: OfflineManager;
-  private _isOnline = navigator.onLine;
+  private _isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
   private listeners: Array<(online: boolean) => void> = [];
 
   private constructor() {
-    window.addEventListener('online', () => {
-      this._isOnline = true;
-      this.notify(true);
-    });
-    window.addEventListener('offline', () => {
-      this._isOnline = false;
-      this.notify(false);
-    });
+    if (typeof window === 'undefined') return;
+    window.addEventListener('online', () => { this._isOnline = true; this.notify(true); });
+    window.addEventListener('offline', () => { this._isOnline = false; this.notify(false); });
   }
 
   static getInstance(): OfflineManager {
@@ -32,30 +28,24 @@ export class OfflineManager {
     return OfflineManager.instance;
   }
 
-  get isOnline(): boolean {
+  isOnline(): boolean {
     return this._isOnline;
   }
 
   onStatusChange(listener: (online: boolean) => void): () => void {
     this.listeners.push(listener);
-    return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
-    };
+    return () => { this.listeners = this.listeners.filter(l => l !== listener); };
   }
 
   private notify(online: boolean): void {
     this.listeners.forEach(l => l(online));
   }
 
-  cacheHospitalData(): void {
-    const entry: CacheEntry = {
-      data: ALL_HOSPITALS,
-      cachedAt: Date.now(),
-    };
+  cacheHospitalData(hospitals: Record<string, Hospital[]>): void {
     try {
+      const entry: CacheEntry = { data: hospitals, cachedAt: Date.now() };
       localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
-    } catch {
-    }
+    } catch { }
   }
 
   getCachedHospitals(): Record<string, Hospital[]> | null {
@@ -65,37 +55,26 @@ export class OfflineManager {
       const entry: CacheEntry = JSON.parse(raw);
       if (Date.now() - entry.cachedAt > CACHE_TTL) return null;
       return entry.data;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
 
   getHospitals(city: string): Hospital[] {
-    if (this._isOnline) return ALL_HOSPITALS[city] ?? [];
+    if (this._isOnline) {
+      const hospitals = ALL_HOSPITALS[city] ?? [];
+      this.cacheHospitalData(ALL_HOSPITALS);
+      return hospitals;
+    }
     const cached = this.getCachedHospitals();
-    if (cached) return cached[city] ?? [];
-    return ALL_HOSPITALS[city] ?? [];
+    return cached?.[city] ?? ALL_HOSPITALS[city] ?? [];
   }
 
   calculateDistanceBasedRoute(
-    hospitals: Hospital[],
-    patientLat: number,
-    patientLng: number
+    lat: number,
+    lng: number,
+    hospitals: Hospital[]
   ): Hospital[] {
-    function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-      const R = 6371;
-      const dLat = ((lat2 - lat1) * Math.PI) / 180;
-      const dLng = ((lng2 - lng1) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
     return [...hospitals]
-      .map(h => ({ ...h, distance: haversine(patientLat, patientLng, h.lat, h.lng) }))
-      .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));
+      .map(h => ({ ...h, _dist: haversineKm(lat, lng, h.location.lat, h.location.lng) }))
+      .sort((a, b) => (a._dist ?? 0) - (b._dist ?? 0));
   }
 }
-
-export const offlineManager = OfflineManager.getInstance();
