@@ -1,1 +1,1 @@
-https://asset-manager--sirfnfkjnfre.replit.app
+golden-hour-engine--2024ca54f.replit.app
